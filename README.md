@@ -4,6 +4,7 @@ A web application that scrapes product reviews from Capterra and G2, allowing us
 
 ## Demo Video
 
+https://github.com/user-attachments/assets/13dab285-6d78-4db3-a1bc-4f3ee8cb8114
 
 
 ## Features
