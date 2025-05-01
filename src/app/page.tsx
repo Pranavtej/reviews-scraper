@@ -18,14 +18,35 @@ interface SearchResult {
   logo_url: string;
 }
 
+// Define interface for search parameters
+interface SearchParams {
+  companyName: string;
+  startDate: string;
+  endDate: string;
+  source: "capterra" | "g2";
+}
+
 export default function Home() {
-  const [companyName, setCompanyName] = useState("");
+  const [searchParams, setSearchParams] = useState<SearchParams>({
+    companyName: "",
+    startDate: "",
+    endDate: "",
+    source: "capterra"
+  });
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setSearchParams(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
   const fetchSearchResults = async () => {
-    if (!companyName.trim()) {
+    if (!searchParams.companyName.trim()) {
       setError("Please enter a company name");
       return;
     }
@@ -34,8 +55,15 @@ export default function Home() {
     setError("");
 
     try {
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      queryParams.append("company_name", searchParams.companyName);
+      if (searchParams.startDate) queryParams.append("start_date", searchParams.startDate);
+      if (searchParams.endDate) queryParams.append("end_date", searchParams.endDate);
+      queryParams.append("source", searchParams.source);
+
       const response = await fetch(
-        `http://127.0.0.1:3200/get_reviews?company_name=${encodeURIComponent(companyName)}`,
+        `http://127.0.0.1:3200/get_reviews?${queryParams.toString()}`,
         {
           method: "GET",
           headers: {
@@ -69,26 +97,77 @@ export default function Home() {
       </h1>
 
       <p className="text-xl text-muted-foreground max-w-2xl text-center">
-        Enter a company name to search on Capterra
+        Enter search parameters to find product reviews
       </p>
 
-      <div className="w-full max-w-xl relative mt-4">
-        <Input
-          type="text"
-          placeholder="e.g. Microsoft, Slack, Zoom"
-          className="pr-12 py-6 text-lg"
-          value={companyName}
-          onChange={(e) => setCompanyName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && fetchSearchResults()}
-        />
-        <Button
-          size="icon"
-          className="absolute right-1 top-1 bottom-1 h-auto aspect-square"
-          variant="ghost"
-          onClick={() => setCompanyName("")}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><polyline points="9 10 4 15 9 20"></polyline><path d="M20 4v7a4 4 0 0 1-4 4H4"></path></svg>
-        </Button>
+      <div className="w-full max-w-xl space-y-4 mt-4">
+        {/* Company Name Input */}
+        <div className="relative">
+          <Input
+            type="text"
+            name="companyName"
+            placeholder="e.g. Microsoft, Slack, Zoom"
+            className="pr-12 py-6 text-lg"
+            value={searchParams.companyName}
+            onChange={handleInputChange}
+            onKeyDown={(e) => e.key === "Enter" && fetchSearchResults()}
+          />
+          <Button
+            size="icon"
+            className="absolute right-1 top-1 bottom-1 h-auto aspect-square"
+            variant="ghost"
+            onClick={() => setSearchParams(prev => ({ ...prev, companyName: "" }))}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><polyline points="9 10 4 15 9 20"></polyline><path d="M20 4v7a4 4 0 0 1-4 4H4"></path></svg>
+          </Button>
+        </div>
+
+        {/* Date Range Inputs */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
+              Start Date
+            </label>
+            <Input
+              type="date"
+              id="startDate"
+              name="startDate"
+              className="w-full"
+              value={searchParams.startDate}
+              onChange={handleInputChange}
+            />
+          </div>
+          <div>
+            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+              End Date
+            </label>
+            <Input
+              type="date"
+              id="endDate"
+              name="endDate"
+              className="w-full"
+              value={searchParams.endDate}
+              onChange={handleInputChange}
+            />
+          </div>
+        </div>
+
+        {/* Source Selection */}
+        <div>
+          <label htmlFor="source" className="block text-sm font-medium text-gray-700 mb-1">
+            Review Source
+          </label>
+          <select
+            id="source"
+            name="source"
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            value={searchParams.source}
+            onChange={handleInputChange}
+          >
+            <option value="capterra">Capterra</option>
+            <option value="g2">G2</option>
+          </select>
+        </div>
       </div>
 
       <Button
@@ -140,10 +219,10 @@ export default function Home() {
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline text-sm"
                       >
-                        View on Capterra
+                        View on {searchParams.source === "g2" ? "G2" : "Capterra"}
                       </a>
                       <Link
-                        href={`/reviews?url=${encodeURIComponent(result.full_url)}&name=${encodeURIComponent(result.product_name)}`}
+                        href={`/reviews?url=${encodeURIComponent(result.full_url)}&name=${encodeURIComponent(result.product_name)}&source=${searchParams.source}${searchParams.startDate ? `&startDate=${searchParams.startDate}` : ''}${searchParams.endDate ? `&endDate=${searchParams.endDate}` : ''}`}
                         className="text-green-600 hover:underline text-sm"
                       >
                         View Reviews →
@@ -156,7 +235,7 @@ export default function Home() {
           </div>
         </div>
       ) : (
-        !loading && companyName.trim() && (
+        !loading && searchParams.companyName.trim() && (
           <div className="text-center text-muted-foreground mt-8">
             No results found. Try a different search term.
           </div>
